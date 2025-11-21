@@ -2,15 +2,16 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the backend directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # MongoDB Atlas connection
 MONGO_URI = os.getenv(
     "MONGO_URI",
-    "mongodb+srv://sumanth2004ak_db_user:password@cluster0.25zl6jj.mongodb.net/mbc?retryWrites=true&w=majority"
+    "mongodb+srv://sumanth:12345@cluster0.25zl6jj.mongodb.net/mbc?retryWrites=true&w=majority"
 )
 
-client = AsyncIOMotorClient(MONGO_URI)
+client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 db = client.mbc
 users_collection = db.users
 appointments_collection = db.appointments
