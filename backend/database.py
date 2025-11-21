@@ -2,14 +2,13 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
-# Load .env from the backend directory
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+# Load .env locally (for development only)
+load_dotenv()
 
-# MongoDB Atlas connection
-MONGO_URI = os.getenv(
-    "MONGO_URI",
-    "mongodb+srv://sumanth:12345@cluster0.25zl6jj.mongodb.net/mbc?retryWrites=true&w=majority"
-)
+# MongoDB Atlas connection - use environment variable, fallback to .env
+MONGO_URI = os.getenv("MONGO_URI")
+if not MONGO_URI:
+    raise ValueError("MONGO_URI environment variable not set. Please configure it in .env or environment.")
 
 client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 db = client.mbc
