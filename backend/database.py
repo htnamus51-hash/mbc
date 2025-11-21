@@ -13,12 +13,11 @@ if not MONGO_URI:
 
 print(f"[DEBUG] Connecting to MongoDB with URI: {MONGO_URI[:50]}...")  # Log first 50 chars for debugging
 
-# Add SSL verification settings for Railway environment
+# Add TLS settings for Railway environment
 client = AsyncIOMotorClient(
     MONGO_URI, 
     serverSelectionTimeoutMS=10000,
-    tlsAllowInvalidCertificates=True,
-    tlsInsecure=True
+    tlsAllowInvalidCertificates=True
 )
 db = client.mbc
 users_collection = db.users
