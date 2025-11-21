@@ -1,11 +1,14 @@
 import os
-
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/mbc")
+# MongoDB Atlas connection
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb+srv://sumanth2004ak_db_user:password@cluster0.25zl6jj.mongodb.net/mbc?retryWrites=true&w=majority"
+)
 
 client = AsyncIOMotorClient(MONGO_URI)
 db = client.mbc
