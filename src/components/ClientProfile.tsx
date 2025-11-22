@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Mail, Phone, Calendar, ArrowLeft } from 'lucide-react';
+import { apiUrl } from '@/config';
 
 interface ClientProfileProps {
   clientId: string | number | undefined;
@@ -25,7 +26,7 @@ export function ClientProfile({ clientId, onBack }: ClientProfileProps) {
       setError(null);
       try {
         console.log('Fetching client with ID:', clientId);
-        const res = await fetch(`http://localhost:8000/api/clients/${clientId}`);
+        const res = await fetch(apiUrl(`/api/clients/${clientId}`));
         console.log('Response status:', res.status);
         
         if (!res.ok) {

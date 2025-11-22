@@ -3,6 +3,7 @@ import { Search, Filter, Plus, MoreVertical, Phone, Mail, Calendar, FileText } f
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { apiUrl } from '@/config';
 
 export function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
@@ -11,7 +12,7 @@ export function ClientsPage() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/clients');
+      const res = await fetch(apiUrl('/api/clients'));
       if (!res.ok) {
         console.error('Failed to fetch clients');
         setClients([]);

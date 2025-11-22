@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, Video, Phone, MapPin, MoreVertical } f
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { apiUrl } from '@/config';
 
 export function AppointmentsPage() {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
@@ -13,7 +14,7 @@ export function AppointmentsPage() {
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/appointments');
+      const res = await fetch(apiUrl('/api/appointments'));
       if (!res.ok) {
         console.error('Failed to fetch appointments');
         setAppointments([]);

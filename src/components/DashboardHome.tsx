@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useState, useEffect } from 'react';
+import { apiUrl } from '@/config';
 
 export function DashboardHome() {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -59,7 +60,7 @@ export function DashboardHome() {
     try {
       // First, check availability
       const availRes = await fetch(
-        `http://localhost:8000/api/appointments/check-availability?doctor=${encodeURIComponent(appointmentDoctor)}&datetime_str=${encodeURIComponent(datetime)}&duration=${duration}`
+        apiUrl(`/api/appointments/check-availability?doctor=${encodeURIComponent(appointmentDoctor)}&datetime_str=${encodeURIComponent(datetime)}&duration=${duration}`)
       );
       
       if (!availRes.ok) {
@@ -82,7 +83,7 @@ export function DashboardHome() {
         duration: duration,
       };
 
-      const res = await fetch('http://localhost:8000/api/appointments', {
+      const res = await fetch(apiUrl('/api/appointments'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -135,7 +136,7 @@ export function DashboardHome() {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/clients', {
+      const res = await fetch(apiUrl('/api/clients'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -212,7 +213,7 @@ export function DashboardHome() {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/notes', {
+      const res = await fetch(apiUrl('/api/notes'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -249,7 +250,7 @@ export function DashboardHome() {
   // Mark note as completed
   const completeNote = async (noteId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/notes/${noteId}/complete`, {
+      const res = await fetch(apiUrl(`/api/notes/${noteId}/complete`), {
         method: 'PATCH',
       });
 
@@ -274,7 +275,7 @@ export function DashboardHome() {
   // Delete note from database
   const deleteNoteFromDashboard = async (noteId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/notes/${noteId}`, {
+      const res = await fetch(apiUrl(`/api/notes/${noteId}`), {
         method: 'DELETE',
       });
 
@@ -299,7 +300,7 @@ export function DashboardHome() {
       const currentTime = '15:34'; // Current time
       try {
         // Fetch all appointments
-        const apptRes = await fetch('http://localhost:8000/api/appointments');
+        const apptRes = await fetch(apiUrl('/api/appointments'));
         if (apptRes.ok) {
           const appts = await apptRes.json();
           // Filter for today only AND future times only
@@ -329,7 +330,7 @@ export function DashboardHome() {
         }
 
         // Fetch all notes
-        const notesRes = await fetch('http://localhost:8000/api/notes');
+        const notesRes = await fetch(apiUrl('/api/notes'));
         if (notesRes.ok) {
           const notes = await notesRes.json();
           

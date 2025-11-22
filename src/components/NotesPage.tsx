@@ -49,7 +49,7 @@ export function NotesPage() {
     if (!window.confirm('Are you sure you want to delete this note?')) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/notes/${noteId}`, {
+      const res = await fetch(apiUrl(`/api/notes/${noteId}`), {
         method: 'DELETE',
       });
 
@@ -189,7 +189,7 @@ export function NotesPage() {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     try {
-                                      const res = await fetch(`http://localhost:8000/api/notes/${note.id}/complete`, {
+                                      const res = await fetch(apiUrl(`/api/notes/${note.id}/complete`), {
                                         method: 'PATCH',
                                       });
                                       if (res.ok) {
