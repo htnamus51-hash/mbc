@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, FileText, Calendar, CheckCircle2, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { apiUrl } from '@/config';
 
 export function NotesPage() {
   const [notes, setNotes] = useState<any[]>([]);
@@ -10,7 +11,7 @@ export function NotesPage() {
   const fetchNotes = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/notes');
+      const res = await fetch(apiUrl('/api/notes'));
       if (!res.ok) {
         console.error('Failed to fetch notes');
         setNotes([]);
