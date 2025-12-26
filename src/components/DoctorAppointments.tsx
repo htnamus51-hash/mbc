@@ -2,48 +2,83 @@ import { ChevronLeft, ChevronRight, Video, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useState, useEffect } from 'react';
+import { apiUrl } from '@/config';
 
-export function DoctorAppointments() {
-  const appointments = [
-    {
-      id: 1,
-      client: 'Sarah Johnson',
-      time: '9:00 AM',
-      duration: '60 min',
-      type: 'video',
-      status: 'confirmed',
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    },
-    {
-      id: 2,
-      client: 'Michael Chen',
-      time: '10:30 AM',
-      duration: '50 min',
-      type: 'in-person',
-      status: 'confirmed',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    },
-    {
-      id: 3,
-      client: 'Emily Rodriguez',
-      time: '1:00 PM',
-      duration: '60 min',
-      type: 'video',
-      status: 'confirmed',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-    },
-    {
-      id: 4,
-      client: 'David Thompson',
-      time: '2:30 PM',
-      duration: '90 min',
-      type: 'in-person',
-      status: 'pending',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-    },
-  ];
+interface DoctorAppointmentsProps {
+  userName?: string;
+}
 
-  const weekDays = ['Mon 17', 'Tue 18', 'Wed 19', 'Thu 20', 'Fri 21'];
+export function DoctorAppointments({ userName }: DoctorAppointmentsProps) {
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const fetchAppointments = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl('/api/appointments'));
+      if (res.ok) {
+        const data = await res.json();
+        // Filter for this doctor
+        const filtered = (data || []).filter((a: any) => a.doctor === userName);
+        
+        const list = filtered.map((appt: any) => {
+          const parts = appt.datetime.split('T');
+          const dateStr = parts[0];
+          const timeStr = parts[1].substring(0, 5);
+          const [h, m] = timeStr.split(':');
+          const hours = parseInt(h);
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+          
+          return {
+            id: appt.id || appt._id,
+            client: appt.client,
+            date: dateStr,
+            time: `${displayHours}:${m} ${ampm}`,
+            duration: `${appt.duration || 60} min`,
+            type: 'video', // Default to video for now
+            status: appt.status || 'confirmed',
+            image: ''
+          };
+        });
+        setAppointments(list);
+      }
+    } catch (err) {
+      console.error('Error fetching appointments', err);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [userName]);
+
+  const todayStr = currentDate.toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(a => a.date === todayStr);
+
+  const getWeekDays = () => {
+    const days = [];
+    const startOfWeek = new Date(currentDate);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      days.push({
+        name: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: d.getDate(),
+        fullDate: d.toISOString().split('T')[0]
+      });
+    }
+    return days;
+  };
+
+  const weekDays = getWeekDays();
+  const weekRangeText = `${new Date(weekDays[0].fullDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}-${new Date(weekDays[4].fullDate).getDate()}, ${new Date(weekDays[4].fullDate).getFullYear()}`;
 
   return (
     <div className="p-6 space-y-6">
@@ -57,15 +92,32 @@ export function DoctorAppointments() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    const d = new Date(currentDate);
+                    d.setDate(d.getDate() - 7);
+                    setCurrentDate(d);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
                   <ChevronLeft className="w-5 h-5 text-slate-600" />
                 </button>
-                <div className="text-slate-900">This Week - November 17-21, 2025</div>
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <div className="text-slate-900">This Week - {weekRangeText}</div>
+                <button 
+                  onClick={() => {
+                    const d = new Date(currentDate);
+                    d.setDate(d.getDate() + 7);
+                    setCurrentDate(d);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
                   <ChevronRight className="w-5 h-5 text-slate-600" />
                 </button>
               </div>
-              <button className="px-3 py-1.5 text-sm text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors">
+              <button 
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-1.5 text-sm text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
+              >
                 Today
               </button>
             </div>
@@ -75,24 +127,32 @@ export function DoctorAppointments() {
         <CardContent>
           {/* Simple Week View */}
           <div className="grid grid-cols-5 gap-3 mb-6">
-            {weekDays.map((day, index) => (
-              <div
-                key={day}
-                className={`p-4 rounded-xl text-center cursor-pointer transition-colors ${
-                  index === 0
-                    ? 'bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-cyan-200'
-                    : 'bg-slate-50 hover:bg-slate-100'
-                }`}
-              >
-                <div className="text-xs text-slate-500">{day.split(' ')[0]}</div>
-                <div className={`mt-1 ${index === 0 ? 'text-cyan-900' : 'text-slate-900'}`}>
-                  {day.split(' ')[1]}
+            {weekDays.map((day) => {
+              const dayAppts = appointments.filter(a => a.date === day.fullDate);
+              const isSelected = day.fullDate === todayStr;
+              return (
+                <div
+                  key={day.fullDate}
+                  onClick={() => {
+                    const d = new Date(day.fullDate);
+                    setCurrentDate(d);
+                  }}
+                  className={`p-4 rounded-xl text-center cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-cyan-200'
+                      : 'bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="text-xs text-slate-500">{day.name}</div>
+                  <div className={`mt-1 ${isSelected ? 'text-cyan-900' : 'text-slate-900'}`}>
+                    {day.date}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    {dayAppts.length} sessions
+                  </div>
                 </div>
-                <div className="text-xs text-slate-500 mt-2">
-                  {index === 0 ? '5 sessions' : `${Math.floor(Math.random() * 4) + 2} sessions`}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -100,67 +160,61 @@ export function DoctorAppointments() {
       {/* Today's Appointments List */}
       <Card className="border-slate-200 rounded-2xl">
         <CardHeader>
-          <CardTitle>Today's Sessions - Monday, November 17</CardTitle>
+          <CardTitle>Sessions for {currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {appointments.map((appointment) => (
-            <div
-              key={appointment.id}
-              className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
-            >
-              <Avatar className="w-12 h-12">
-                <AvatarImage src={appointment.image} />
-                <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white">
-                  {appointment.client.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">Loading appointments...</div>
+          ) : todayAppointments.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">No sessions scheduled for this day.</div>
+          ) : (
+            todayAppointments.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={appointment.image} />
+                  <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white">
+                    {appointment.client.split(' ').map((n: string) => n[0]).join('')}
+                  </AvatarFallback>
+                </Avatar>
 
-              <div className="flex-1">
-                <div className="text-slate-900">{appointment.client}</div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-slate-500">{appointment.time}</span>
-                  <span className="text-sm text-slate-400">•</span>
-                  <span className="text-sm text-slate-500">{appointment.duration}</span>
-                  <div className="flex items-center gap-1">
-                    {appointment.type === 'video' && (
-                      <>
-                        <Video className="w-4 h-4 text-cyan-600" />
-                        <span className="text-sm text-cyan-600">Video Call</span>
-                      </>
-                    )}
-                    {appointment.type === 'in-person' && (
-                      <>
-                        <MapPin className="w-4 h-4 text-teal-600" />
-                        <span className="text-sm text-teal-600">In-Person</span>
-                      </>
-                    )}
+                <div className="flex-1">
+                  <div className="text-slate-900">{appointment.client}</div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-sm text-slate-500">{appointment.time}</span>
+                    <span className="text-sm text-slate-400">•</span>
+                    <span className="text-sm text-slate-500">{appointment.duration}</span>
+                    <div className="flex items-center gap-1">
+                      <Video className="w-4 h-4 text-cyan-600" />
+                      <span className="text-sm text-cyan-600">Video Call</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <Badge
-                variant="outline"
-                className={`${
-                  appointment.status === 'confirmed'
-                    ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
-                    : 'border-amber-300 text-amber-700 bg-amber-50'
-                }`}
-              >
-                {appointment.status}
-              </Badge>
+                <Badge
+                  variant="outline"
+                  className={`${
+                    appointment.status === 'confirmed'
+                      ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                      : 'border-amber-300 text-amber-700 bg-amber-50'
+                  }`}
+                >
+                  {appointment.status}
+                </Badge>
 
-              <div className="flex gap-2">
-                {appointment.type === 'video' && (
+                <div className="flex gap-2">
                   <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700 transition-colors">
                     Join Session
                   </button>
-                )}
-                <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors">
-                  View Details
-                </button>
+                  <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors">
+                    View Details
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -169,24 +223,13 @@ export function DoctorAppointments() {
         <Card className="border-slate-200 rounded-2xl">
           <CardContent className="p-6">
             <div className="text-sm text-slate-600">This Week</div>
-            <div className="text-slate-900 mt-2">22 appointments</div>
-            <div className="text-xs text-slate-500 mt-1">12 completed, 10 upcoming</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 rounded-2xl">
-          <CardContent className="p-6">
-            <div className="text-sm text-slate-600">Video Sessions</div>
-            <div className="text-slate-900 mt-2">14 sessions</div>
-            <div className="text-xs text-cyan-600 mt-1">64% of total</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 rounded-2xl">
-          <CardContent className="p-6">
-            <div className="text-sm text-slate-600">Available Slots</div>
-            <div className="text-slate-900 mt-2">6 this week</div>
-            <div className="text-xs text-slate-500 mt-1">Accepting bookings</div>
+            <div className="text-slate-900 mt-2">{appointments.filter(a => {
+              const d = new Date(a.date);
+              const start = new Date(weekDays[0].fullDate);
+              const end = new Date(weekDays[4].fullDate);
+              return d >= start && d <= end;
+            }).length} appointments</div>
+            <div className="text-xs text-slate-500 mt-1">Dynamic summary</div>
           </CardContent>
         </Card>
       </div>

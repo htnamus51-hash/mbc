@@ -27,6 +27,10 @@ try:
     appointments_collection = db.appointments
     clients_collection = db.clients
     notes_collection = db.notes
+    messages_collection = db.messages
+    conversations_collection = db.conversations
+    registrations_collection = db.registrations
+    tasks_collection = db.tasks
     print("[DEBUG] MongoDB connection initialized successfully")
 except Exception as e:
     print(f"[ERROR] Failed to initialize MongoDB: {e}")

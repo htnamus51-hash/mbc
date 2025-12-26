@@ -12,7 +12,7 @@ export function DoctorSidebar({ currentPage, onNavigate }: DoctorSidebarProps) {
     { id: 'appointments', label: 'My Appointments', icon: Calendar },
     { id: 'forms', label: 'Forms & Notes', icon: FileText },
     { id: 'messaging', label: 'Messages', icon: MessageSquare },
-    { id: 'telehealth', label: 'Video Sessions', icon: Video },
+    { id: 'sessions', label: 'Sessions', icon: Calendar },
     { id: 'settings', label: 'My Profile', icon: Settings },
   ];
 

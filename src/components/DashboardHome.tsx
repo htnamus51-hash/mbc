@@ -5,16 +5,141 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useState, useEffect } from 'react';
 import { apiUrl } from '@/config';
 
-export function DashboardHome() {
+interface DashboardHomeProps {
+  userName?: string;
+}
+
+export function DashboardHome({ userName }: DashboardHomeProps) {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [todaysSessions, setTodaysSessions] = useState<any[]>([]);
+  const [weekSessionsCount, setWeekSessionsCount] = useState(0);
+  const [completedSessionsCount, setCompletedSessionsCount] = useState(0);
+  const [activePlansCount, setActivePlansCount] = useState(0);
+  const [plansEndingThisWeekCount, setPlansEndingThisWeekCount] = useState(0);
   const [todaysNotes, setTodaysNotes] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [newRegistrations, setNewRegistrations] = useState<any[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+
+  // Appointment search state
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await fetch(apiUrl('/api/tasks'));
+      if (res.ok) {
+        const data = await res.json();
+        setTasks(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching tasks', err);
+    }
+  };
+
+  const toggleTask = async (taskId: string) => {
+    try {
+      const res = await fetch(apiUrl(`/api/tasks/${taskId}?completed=true`), {
+        method: 'PATCH',
+      });
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+      }
+    } catch (err) {
+      console.error('Error toggling task', err);
+    }
+  };
+
+  const createTask = async () => {
+    if (!taskText) return;
+    try {
+      const res = await fetch(apiUrl('/api/tasks'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task: taskText,
+          type: taskType,
+          priority: taskPriority,
+        }),
+      });
+      if (res.ok) {
+        fetchTasks();
+        setTaskText('');
+        setShowAddTaskModal(false);
+      }
+    } catch (err) {
+      console.error('Error creating task', err);
+    }
+  };
+
+  const fetchClients = async () => {
+    setLoadingClients(true);
+    try {
+      const res = await fetch(apiUrl('/api/clients'));
+      if (res.ok) {
+        const data = await res.json();
+        setClients(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching clients', err);
+    }
+    setLoadingClients(false);
+  };
+
+  const fetchDoctors = async () => {
+    try {
+      const res = await fetch(apiUrl('/api/doctors'));
+      if (res.ok) {
+        const data = await res.json();
+        setDoctors(data || []);
+        // Set default doctor if none selected
+        if (data.length > 0 && !appointmentDoctor) {
+          setAppointmentDoctor(data[0].full_name);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching doctors', err);
+    }
+  };
+
+  const fetchRegistrations = async () => {
+    setLoadingRegistrations(true);
+    try {
+      const res = await fetch(apiUrl('/api/registrations'));
+      if (res.ok) {
+        const data = await res.json();
+        setNewRegistrations(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching registrations', err);
+    }
+    setLoadingRegistrations(false);
+  };
+
+  useEffect(() => {
+    fetchClients();
+    fetchDoctors();
+    fetchRegistrations();
+    fetchTasks();
+    
+    const handler = () => {
+      fetchClients();
+      fetchRegistrations();
+      fetchTasks();
+    };
+    window.addEventListener('client:created', handler as EventListener);
+    return () => window.removeEventListener('client:created', handler as EventListener);
+  }, []);
   // Note form state
   const [noteType, setNoteType] = useState('Progress Note');
   const [noteContent, setNoteContent] = useState('');
-  const [noteDate, setNoteDate] = useState('2025-11-20');
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [noteTime, setNoteTime] = useState('09:00');
   // Add Client form state
   const [clientFirstName, setClientFirstName] = useState('');
@@ -24,10 +149,15 @@ export function DashboardHome() {
   const [clientDob, setClientDob] = useState('');
   const [clientGender, setClientGender] = useState('');
   
+  // Task form state
+  const [taskText, setTaskText] = useState('');
+  const [taskType, setTaskType] = useState<'note' | 'form' | 'message' | 'document'>('note');
+  const [taskPriority, setTaskPriority] = useState<'high' | 'medium' | 'low'>('medium');
+  
   // Appointment form state
-  const [appointmentDoctor, setAppointmentDoctor] = useState('Dr. Rebecca Smith');
+  const [appointmentDoctor, setAppointmentDoctor] = useState(userName || '');
   const [appointmentClient, setAppointmentClient] = useState('');
-  const [appointmentDate, setAppointmentDate] = useState('2025-11-18');
+  const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState('09:00');
   const [appointmentDuration, setAppointmentDuration] = useState('60');
   const [appointmentType, setAppointmentType] = useState('Therapy Session');
@@ -39,8 +169,9 @@ export function DashboardHome() {
       return;
     }
 
-    const today = '2025-11-18'; // This should match your actual today date
-    const currentTime = '15:34'; // Current time
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().substring(0, 5);
     
     // Validate appointment date/time
     if (appointmentDate < today) {
@@ -110,9 +241,9 @@ export function DashboardHome() {
         // ignore
       }
       // Reset form and close modal
-      setAppointmentDoctor('Dr. Rebecca Smith');
+      setAppointmentDoctor(userName || '');
       setAppointmentClient('');
-      setAppointmentDate('2025-11-18');
+      setAppointmentDate(new Date().toISOString().split('T')[0]);
       setAppointmentTime('09:00');
       setAppointmentDuration('60');
       setAppointmentType('Therapy Session');
@@ -180,8 +311,9 @@ export function DashboardHome() {
       return;
     }
 
-    const today = '2025-11-20'; // Current date
-    const currentTime = '15:34'; // Current time
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().substring(0, 5);
 
     // Validate reminder date/time
     if (noteDate && noteTime) {
@@ -237,7 +369,7 @@ export function DashboardHome() {
       // Reset form and close modal
       setNoteType('Progress Note');
       setNoteContent('');
-      setNoteDate('2025-11-20');
+      setNoteDate(new Date().toISOString().split('T')[0]);
       setNoteTime('09:00');
       setShowAddNoteModal(false);
       alert('✅ Note saved successfully!');
@@ -296,21 +428,37 @@ export function DashboardHome() {
   // Fetch today's appointments and notes
   useEffect(() => {
     const fetchTodayData = async () => {
-      const today = '2025-11-20'; // Today's date
-      const currentTime = '15:34'; // Current time
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const currentTime = now.toTimeString().substring(0, 5);
       try {
         // Fetch all appointments
         const apptRes = await fetch(apiUrl('/api/appointments'));
         if (apptRes.ok) {
           const appts = await apptRes.json();
-          // Filter for today only AND future times only
+          
+          // Calculate week stats
+          const startOfWeek = new Date(now);
+          const day = startOfWeek.getDay();
+          const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday
+          startOfWeek.setDate(diff);
+          startOfWeek.setHours(0, 0, 0, 0);
+          
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+          endOfWeek.setHours(23, 59, 59, 999);
+
+          const weekAppts = appts.filter((appt: any) => {
+            const d = new Date(appt.datetime);
+            return d >= startOfWeek && d <= endOfWeek;
+          });
+          setWeekSessionsCount(weekAppts.length);
+          setCompletedSessionsCount(weekAppts.filter((a: any) => a.status === 'completed').length);
+
+          // Filter for today only
           const todayAppts = appts.filter((appt: any) => {
             const apptDate = appt.datetime.split('T')[0];
-            if (apptDate !== today) return false;
-            
-            // Filter out past times
-            const timeStr = appt.datetime.split('T')[1].substring(0, 5);
-            return timeStr >= currentTime; // Only show future appointments
+            return apptDate === today;
           }).map((appt: any) => {
             const timeStr = appt.datetime.split('T')[1].substring(0, 5);
             const [hours, mins] = timeStr.split(':');
@@ -334,6 +482,20 @@ export function DashboardHome() {
         if (notesRes.ok) {
           const notes = await notesRes.json();
           
+          // Calculate Active Plans (Treatment Plans)
+          const treatmentPlans = notes.filter((n: any) => n.note_type === 'Treatment Plan');
+          setActivePlansCount(treatmentPlans.length);
+          
+          // Plans ending this week (using reminder_date as a proxy for review/end date)
+          const nextWeek = new Date(now);
+          nextWeek.setDate(now.getDate() + 7);
+          const nextWeekStr = nextWeek.toISOString().split('T')[0];
+          
+          const endingSoon = treatmentPlans.filter((n: any) => {
+            return n.reminder_date && n.reminder_date >= today && n.reminder_date <= nextWeekStr;
+          });
+          setPlansEndingThisWeekCount(endingSoon.length);
+
           // Filter for today based on REMINDER DATE - only if reminder_date is actually set
           // AND the reminder time hasn't passed yet
           const todayNotes = notes.filter((note: any) => {
@@ -371,19 +533,6 @@ export function DashboardHome() {
     };
   }, []);
 
-  const newRegistrations = [
-    { id: 1, name: 'Amanda Foster', email: 'amanda.f@email.com', date: '2 hours ago', status: 'pending', source: 'mbctherapy.com' },
-    { id: 2, name: 'Robert Kim', email: 'robert.kim@email.com', date: '5 hours ago', status: 'verified', source: 'mbctherapy.com' },
-    { id: 3, name: 'Jessica Martinez', email: 'j.martinez@email.com', date: '1 day ago', status: 'new', source: 'mbctherapy.com' },
-  ];
-
-  const pendingTasks = [
-    { id: 1, task: 'Complete progress notes for Sarah Johnson', type: 'note', priority: 'high' },
-    { id: 2, task: 'Review intake form for Michael Chen', type: 'form', priority: 'medium' },
-    { id: 3, task: 'Respond to message from Emily Rodriguez', type: 'message', priority: 'high' },
-    { id: 4, task: 'Upload treatment plan for David Thompson', type: 'document', priority: 'low' },
-  ];
-
   const quickActions = [
     { icon: UserPlus, label: 'Add Client', color: 'from-sky-500 to-blue-500', action: () => setShowAddClientModal(true) },
     { icon: Calendar, label: 'Create Appointment', color: 'from-cyan-500 to-teal-500', action: () => setShowAppointmentModal(true) },
@@ -394,7 +543,7 @@ export function DashboardHome() {
     <div className="p-6 space-y-6">
       {/* Welcome Header */}
       <div>
-        <h1 className="text-slate-900">Welcome back, Dr. Smith</h1>
+        <h1 className="text-slate-900">Welcome back, {userName || 'Dr. Admin'}</h1>
         <p className="text-slate-600 mt-1">Here's what's happening with your practice today.</p>
       </div>
 
@@ -405,10 +554,10 @@ export function DashboardHome() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-slate-600">Total Clients</p>
-                <p className="text-slate-900 mt-2">142</p>
+                <p className="text-slate-900 mt-2">{clients.length}</p>
                 <div className="flex items-center gap-1 mt-2 text-xs text-emerald-600">
                   <TrendingUp className="w-3 h-3" />
-                  <span>+12% from last month</span>
+                  <span>Active roster</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center">
@@ -423,9 +572,9 @@ export function DashboardHome() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-slate-600">Active Plans</p>
-                <p className="text-slate-900 mt-2">87</p>
+                <p className="text-slate-900 mt-2">{activePlansCount}</p>
                 <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                  <span>3 ending this week</span>
+                  <span>{plansEndingThisWeekCount} ending this week</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -440,10 +589,10 @@ export function DashboardHome() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-slate-600">Sessions This Week</p>
-                <p className="text-slate-900 mt-2">28</p>
+                <p className="text-slate-900 mt-2">{weekSessionsCount}</p>
                 <div className="flex items-center gap-1 mt-2 text-xs text-emerald-600">
                   <CheckCircle2 className="w-3 h-3" />
-                  <span>18 completed</span>
+                  <span>{completedSessionsCount} completed</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
@@ -458,9 +607,9 @@ export function DashboardHome() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-slate-600">Pending Tasks</p>
-                <p className="text-slate-900 mt-2">12</p>
+                <p className="text-slate-900 mt-2">{tasks.length}</p>
                 <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
-                  <span>4 high priority</span>
+                  <span>{tasks.filter(t => t.priority === 'high').length} high priority</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-500 flex items-center justify-center">
@@ -481,35 +630,42 @@ export function DashboardHome() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {todaysSessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center justify-center w-16 h-16 bg-white rounded-xl border border-slate-200">
-                  <div className="text-center">
-                    <div className="text-xs text-slate-500">
-                      {session.time.split(' ')[1]}
-                    </div>
-                    <div className="text-sm text-slate-900">
-                      {session.time.split(' ')[0]}
+            {todaysSessions.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>No sessions scheduled for today</p>
+              </div>
+            ) : (
+              todaysSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-center w-16 h-16 bg-white rounded-xl border border-slate-200">
+                    <div className="text-center">
+                      <div className="text-xs text-slate-500">
+                        {session.time.split(' ')[1]}
+                      </div>
+                      <div className="text-sm text-slate-900">
+                        {session.time.split(' ')[0]}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex-1">
+                    <div className="text-slate-900">{session.client}</div>
+                    <div className="text-sm text-slate-500">{session.type}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      Details
+                    </button>
+                    <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700 transition-colors">
+                      Start Session
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-slate-900">{session.client}</div>
-                  <div className="text-sm text-slate-500">{session.type}</div>
-                </div>
-                <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                    Details
-                  </button>
-                  <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700 transition-colors">
-                    Start Session
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -623,37 +779,48 @@ export function DashboardHome() {
                 Verified
               </button>
             </div>
-            {newRegistrations.map((registration) => (
-              <div
-                key={registration.id}
-                className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white">
-                    {registration.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-slate-900">{registration.name}</div>
-                  <div className="text-xs text-slate-500 truncate">{registration.email}</div>
-                </div>
-                <div className="text-right">
-                  <Badge
-                    variant="outline"
-                    className={`text-xs mb-1 ${
-                      registration.status === 'verified'
-                        ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
-                        : registration.status === 'pending'
-                        ? 'border-amber-300 text-amber-700 bg-amber-50'
-                        : 'border-cyan-300 text-cyan-700 bg-cyan-50'
-                    }`}
-                  >
-                    {registration.status}
-                  </Badge>
-                  <div className="text-xs text-slate-400">{registration.date}</div>
-                </div>
+            {loadingRegistrations ? (
+              <p className="text-sm text-slate-500 py-4 text-center">Loading registrations...</p>
+            ) : newRegistrations.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <UserPlus className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>No new registrations from website</p>
               </div>
-            ))}
+            ) : (
+              newRegistrations.slice(0, 5).map((registration) => (
+                <div
+                  key={registration.id}
+                  className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white">
+                      {registration.name.split(' ').map((n: any) => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-slate-900">{registration.name}</div>
+                    <div className="text-xs text-slate-500 truncate">{registration.email}</div>
+                  </div>
+                  <div className="text-right">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs mb-1 ${
+                        registration.status === 'verified'
+                          ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                          : registration.status === 'pending'
+                          ? 'border-amber-300 text-amber-700 bg-amber-50'
+                          : 'border-cyan-300 text-cyan-700 bg-cyan-50'
+                      }`}
+                    >
+                      {registration.status}
+                    </Badge>
+                    <div className="text-[10px] text-slate-400">
+                      {new Date(registration.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
             <button className="w-full py-3 text-sm text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors">
               View All Registrations →
             </button>
@@ -662,51 +829,64 @@ export function DashboardHome() {
 
         {/* Pending Tasks */}
         <Card className="border-slate-200 rounded-2xl">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-4 flex flex-row items-center justify-between">
             <CardTitle>Pending Tasks</CardTitle>
+            <button 
+              onClick={() => setShowAddTaskModal(true)}
+              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-cyan-600"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {pendingTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <div className="mt-0.5">
-                  <div className="w-5 h-5 rounded border-2 border-slate-300 hover:border-cyan-500 transition-colors" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm text-slate-900">{task.task}</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        task.type === 'note'
-                          ? 'border-blue-300 text-blue-700 bg-blue-50'
-                          : task.type === 'form'
-                          ? 'border-purple-300 text-purple-700 bg-purple-50'
-                          : task.type === 'message'
-                          ? 'border-cyan-300 text-cyan-700 bg-cyan-50'
-                          : 'border-slate-300 text-slate-700 bg-slate-50'
-                      }`}
-                    >
-                      {task.type}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        task.priority === 'high'
-                          ? 'border-red-300 text-red-700 bg-red-50'
-                          : task.priority === 'medium'
-                          ? 'border-amber-300 text-amber-700 bg-amber-50'
-                          : 'border-slate-300 text-slate-700 bg-slate-50'
-                      }`}
-                    >
-                      {task.priority}
-                    </Badge>
+            {tasks.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">No pending tasks! All caught up.</div>
+            ) : (
+              tasks.map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTask(task.id)}
+                  className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer group"
+                >
+                  <div className="mt-0.5">
+                    <div className="w-5 h-5 rounded border-2 border-slate-300 group-hover:border-cyan-500 transition-colors flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-cyan-500 opacity-0 group-hover:opacity-50" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm text-slate-900">{task.task}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          task.type === 'note'
+                            ? 'border-blue-300 text-blue-700 bg-blue-50'
+                            : task.type === 'form'
+                            ? 'border-purple-300 text-purple-700 bg-purple-50'
+                            : task.type === 'message'
+                            ? 'border-cyan-300 text-cyan-700 bg-cyan-50'
+                            : 'border-slate-300 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        {task.type}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          task.priority === 'high'
+                            ? 'border-red-300 text-red-700 bg-red-50'
+                            : task.priority === 'medium'
+                            ? 'border-amber-300 text-amber-700 bg-amber-50'
+                            : 'border-slate-300 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        {task.priority}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
             <button className="w-full py-3 text-sm text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors">
               View All Tasks →
             </button>
@@ -744,27 +924,67 @@ export function DashboardHome() {
                   onChange={(e) => setAppointmentDoctor(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 >
-                  <option>Dr. Rebecca Smith</option>
-                  <option>Dr. John Anderson</option>
-                  <option>Dr. Sarah Williams</option>
-                  <option>Dr. Michael Brown</option>
+                  {doctors.length > 0 ? (
+                    doctors.map((doc: any) => (
+                      <option key={doc.email} value={doc.full_name}>
+                        {doc.full_name}
+                      </option>
+                    ))
+                  ) : (
+                    <option>{userName || 'Select Doctor'}</option>
+                  )}
                 </select>
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="text-sm text-slate-700 mb-2 block">Patient Name</label>
-                <select
-                  value={appointmentClient}
-                  onChange={(e) => setAppointmentClient(e.target.value)}
+                <input
+                  type="text"
+                  placeholder="Type name or registration ID..."
+                  value={clientSearchQuery || appointmentClient}
+                  onChange={(e) => {
+                    setClientSearchQuery(e.target.value);
+                    setShowClientDropdown(true);
+                  }}
+                  onFocus={() => setShowClientDropdown(true)}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                >
-                  <option value="">Select a patient</option>
-                  <option value="Sarah Johnson">Sarah Johnson</option>
-                  <option value="Michael Chen">Michael Chen</option>
-                  <option value="Emily Rodriguez">Emily Rodriguez</option>
-                  <option value="David Thompson">David Thompson</option>
-                  <option value="Lisa Anderson">Lisa Anderson</option>
-                </select>
+                />
+                {showClientDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-auto">
+                    {clients
+                      .filter(c => 
+                        `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                        (c.id && c.id.toString().toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
+                        (c._id && c._id.toString().toLowerCase().includes(clientSearchQuery.toLowerCase()))
+                      )
+                      .map((client: any) => (
+                        <div
+                          key={client.id || client._id}
+                          className="px-4 py-3 hover:bg-cyan-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors"
+                          onClick={() => {
+                            setAppointmentClient(`${client.first_name} ${client.last_name}`);
+                            setClientSearchQuery(`${client.first_name} ${client.last_name}`);
+                            setShowClientDropdown(false);
+                          }}
+                        >
+                          <div className="font-medium text-slate-900">{client.first_name} {client.last_name}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded">ID: {(client.id || client._id || '').toString().slice(-6)}</span>
+                            <span>{client.email}</span>
+                          </div>
+                        </div>
+                      ))}
+                    {clients.filter(c => 
+                      `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                      (c.id && c.id.toString().toLowerCase().includes(clientSearchQuery.toLowerCase())) ||
+                      (c._id && c._id.toString().toLowerCase().includes(clientSearchQuery.toLowerCase()))
+                    ).length === 0 && (
+                      <div className="px-4 py-4 text-sm text-slate-500 text-center">
+                        No patients found matching "{clientSearchQuery}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1001,10 +1221,10 @@ export function DashboardHome() {
                     type="date"
                     value={noteDate}
                     onChange={(e) => setNoteDate(e.target.value)}
-                    min="2025-11-20"
+                    min={new Date().toISOString().split('T')[0]}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Min date: Nov 20, 2025</p>
+                  <p className="text-xs text-slate-500 mt-1">Min date: Today</p>
                 </div>
                 <div>
                   <label className="text-sm text-slate-700 mb-2 block">Reminder Time</label>
@@ -1012,11 +1232,11 @@ export function DashboardHome() {
                     type="time"
                     value={noteTime}
                     onChange={(e) => setNoteTime(e.target.value)}
-                    min={noteDate === '2025-11-20' ? '15:34' : undefined}
+                    min={noteDate === new Date().toISOString().split('T')[0] ? new Date().toTimeString().substring(0, 5) : undefined}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                   />
-                  {noteDate === '2025-11-20' && (
-                    <p className="text-xs text-slate-500 mt-1">Min time today: 15:34</p>
+                  {noteDate === new Date().toISOString().split('T')[0] && (
+                    <p className="text-xs text-slate-500 mt-1">Min time today: {new Date().toTimeString().substring(0, 5)}</p>
                   )}
                 </div>
               </div>
@@ -1033,6 +1253,181 @@ export function DashboardHome() {
                   className="flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-xl text-sm hover:from-cyan-700 hover:to-teal-700 transition-all"
                 >
                   Add Note
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Task Modal */}
+      {showAddTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
+            onClick={() => setShowAddTaskModal(false)}
+          />
+          <Card className="relative w-full max-w-md border-slate-200 rounded-2xl shadow-2xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>Add New Task</CardTitle>
+                <button
+                  onClick={() => setShowAddTaskModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm text-slate-700 mb-2 block">Task Description</label>
+                <input
+                  type="text"
+                  value={taskText}
+                  onChange={(e) => setTaskText(e.target.value)}
+                  placeholder="e.g. Complete progress notes"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Type</label>
+                  <select
+                    value={taskType}
+                    onChange={(e) => setTaskType(e.target.value as any)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                  >
+                    <option value="note">Note</option>
+                    <option value="form">Form</option>
+                    <option value="message">Message</option>
+                    <option value="document">Document</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Priority</label>
+                  <select
+                    value={taskPriority}
+                    onChange={(e) => setTaskPriority(e.target.value as any)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+              <button
+                onClick={createTask}
+                disabled={!taskText}
+                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50"
+              >
+                Create Task
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {showAddClientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
+            onClick={() => setShowAddClientModal(false)}
+          />
+          <Card className="relative w-full max-w-lg border-slate-200 rounded-2xl shadow-2xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>Register New Patient</CardTitle>
+                <button
+                  onClick={() => setShowAddClientModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">First Name</label>
+                  <input
+                    type="text"
+                    value={clientFirstName}
+                    onChange={(e) => setClientFirstName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Last Name</label>
+                  <input
+                    type="text"
+                    value={clientLastName}
+                    onChange={(e) => setClientLastName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-700 mb-2 block">Email Address</label>
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-700 mb-2 block">Phone Number</label>
+                <input
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={clientDob}
+                    onChange={(e) => setClientDob(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Gender</label>
+                  <select 
+                    value={clientGender}
+                    onChange={(e) => setClientGender(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAddClientModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createClient}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-xl text-sm hover:from-cyan-700 hover:to-teal-700 transition-all"
+                >
+                  Register Patient
                 </button>
               </div>
             </CardContent>

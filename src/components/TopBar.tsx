@@ -9,7 +9,7 @@ interface TopBarProps {
   onLogout?: () => void;
 }
 
-export function TopBar({ userName = 'Dr. Rebecca Smith', userRole = 'Clinical Psychologist', onLogout }: TopBarProps) {
+export function TopBar({ userName = 'User', userRole = 'Staff', onLogout }: TopBarProps) {
   const [showDropdown, setShowDropdown] = React.useState(false);
 
   return (

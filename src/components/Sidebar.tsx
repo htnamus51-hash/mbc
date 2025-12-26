@@ -14,7 +14,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     { id: 'forms', label: 'Forms & Assessments', icon: FileText },
     { id: 'billing', label: 'Billing & Invoices', icon: DollarSign },
     { id: 'messaging', label: 'Messaging', icon: MessageSquare },
-    { id: 'telehealth', label: 'Telehealth', icon: Video },
+    { id: 'sessions', label: 'Sessions', icon: Calendar },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

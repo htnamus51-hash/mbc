@@ -7,7 +7,6 @@ import { AppointmentsPage } from './AppointmentsPage';
 import { FormsPage } from './FormsPage';
 import { BillingPage } from './BillingPage';
 import { MessagingPage } from './MessagingPage';
-import { TelehealthPage } from './TelehealthPage';
 import { ReportsPage } from './ReportsPage';
 import { SettingsPage } from './SettingsPage';
 import { ClientProfile } from './ClientProfile';
@@ -15,17 +14,18 @@ import { NotesPage } from './NotesPage';
 
 interface AdminDashboardProps {
   userName: string;
+  userEmail: string;
   onLogout: () => void;
 }
 
-export function AdminDashboard({ userName, onLogout }: AdminDashboardProps) {
+export function AdminDashboard({ userName, userEmail, onLogout }: AdminDashboardProps) {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedClientId, setSelectedClientId] = useState<string | number | undefined>(undefined);
 
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardHome />;
+        return <DashboardHome userName={userName} />;
       case 'clients':
         return <ClientsPage />;
       case 'client-profile':
@@ -37,9 +37,8 @@ export function AdminDashboard({ userName, onLogout }: AdminDashboardProps) {
       case 'billing':
         return <BillingPage />;
       case 'messaging':
-        return <MessagingPage />;
-      case 'telehealth':
-        return <TelehealthPage />;
+        return <MessagingPage userEmail={userEmail} userRole="admin" />;
+      // telehealth removed: use messaging/appointments for audio/video calls
       case 'reports':
         return <ReportsPage />;
       case 'notes':

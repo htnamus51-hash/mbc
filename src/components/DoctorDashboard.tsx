@@ -6,31 +6,30 @@ import { DoctorMyClients } from './DoctorMyClients';
 import { DoctorAppointments } from './DoctorAppointments';
 import { DoctorForms } from './DoctorForms';
 import { MessagingPage } from './MessagingPage';
-import { TelehealthPage } from './TelehealthPage';
 import { DoctorSettings } from './DoctorSettings';
 
 interface DoctorDashboardProps {
   userName: string;
+  userEmail: string;
   onLogout: () => void;
 }
 
-export function DoctorDashboard({ userName, onLogout }: DoctorDashboardProps) {
+export function DoctorDashboard({ userName, userEmail, onLogout }: DoctorDashboardProps) {
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DoctorHome />;
+        return <DoctorHome userName={userName} />;
       case 'my-clients':
         return <DoctorMyClients />;
       case 'appointments':
-        return <DoctorAppointments />;
+        return <DoctorAppointments userName={userName} />;
       case 'forms':
         return <DoctorForms />;
       case 'messaging':
-        return <MessagingPage />;
-      case 'telehealth':
-        return <TelehealthPage />;
+        return <MessagingPage userEmail={userEmail} userRole="doctor" />;
+      // telehealth removed - calls are available via Messaging
       case 'settings':
         return <DoctorSettings />;
       default:

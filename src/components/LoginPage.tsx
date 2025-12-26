@@ -4,7 +4,7 @@ import { Card, CardContent } from './ui/card';
 import { apiUrl } from '../config';
 
 interface LoginPageProps {
-  onLogin: (role: 'admin' | 'doctor', name: string) => void;
+  onLogin: (role: 'admin' | 'doctor', name: string, email: string) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -44,12 +44,27 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.detail || 'Login failed');
+          // Support both `detail` (FastAPI) and `message` (Express/other) fields
+          throw new Error(data.detail || data.message || 'Login failed');
         }
         const data = await res.json();
         const role = data.role as 'admin' | 'doctor';
         const name = email.includes('@') ? email.split('@')[0] : (role === 'admin' ? 'Admin' : 'Doctor');
-        onLogin(role, name);
+        
+        // Store email in sessionStorage for per-tab session
+        sessionStorage.setItem('userEmail', email);
+        sessionStorage.setItem('userName', name);
+        sessionStorage.setItem('userRole', role);
+        // Also persist access token if backend returned one
+        if (data.access_token) {
+          try {
+            sessionStorage.setItem('accessToken', data.access_token);
+          } catch (e) {
+            // ignore storage errors
+          }
+        }
+        
+        onLogin(role, name, email);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');

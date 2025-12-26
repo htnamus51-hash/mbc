@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Filter, Plus, MoreVertical, Phone, Mail, Calendar, FileText } from 'lucide-react';
+import { Search, Filter, Plus, MoreVertical, Phone, Mail, Calendar, FileText, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -8,6 +8,15 @@ import { apiUrl } from '@/config';
 export function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+
+  // Add Client form state
+  const [clientFirstName, setClientFirstName] = useState('');
+  const [clientLastName, setClientLastName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [clientDob, setClientDob] = useState('');
+  const [clientGender, setClientGender] = useState('');
 
   const fetchClients = async () => {
     setLoading(true);
@@ -40,6 +49,46 @@ export function ClientsPage() {
     setLoading(false);
   };
 
+  const createClient = async () => {
+    const payload = {
+      first_name: clientFirstName,
+      last_name: clientLastName,
+      email: clientEmail,
+      phone: clientPhone,
+      date_of_birth: clientDob,
+      gender: clientGender,
+    };
+
+    try {
+      const res = await fetch(apiUrl('/api/clients'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        alert('Failed to create client');
+        return;
+      }
+
+      const data = await res.json();
+      window.dispatchEvent(new CustomEvent('client:created', { detail: data }));
+      
+      // Reset form
+      setClientFirstName('');
+      setClientLastName('');
+      setClientEmail('');
+      setClientPhone('');
+      setClientDob('');
+      setClientGender('');
+      setShowAddClientModal(false);
+      alert('✅ Client registered successfully!');
+    } catch (error) {
+      console.error('Error creating client', error);
+      alert('Error creating client');
+    }
+  };
+
   useEffect(() => {
     fetchClients();
 
@@ -55,7 +104,10 @@ export function ClientsPage() {
           <h1 className="text-slate-900">Clients</h1>
           <p className="text-slate-600 mt-1">Manage your client roster and view their information</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all">
+        <button 
+          onClick={() => setShowAddClientModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-xl hover:from-cyan-700 hover:to-teal-700 transition-all"
+        >
           <Plus className="w-4 h-4" />
           Add New Client
         </button>
@@ -80,16 +132,16 @@ export function ClientsPage() {
 
           <div className="flex gap-2 mt-4">
             <button className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg text-xs">
-              All Clients (142)
+              All Clients ({clients.length})
             </button>
             <button className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs hover:bg-slate-200">
-              Active (87)
+              Active ({clients.filter(c => c.status === 'active').length})
             </button>
             <button className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs hover:bg-slate-200">
-              Pending (12)
+              Pending ({clients.filter(c => c.status === 'pending').length})
             </button>
             <button className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs hover:bg-slate-200">
-              Inactive (43)
+              Inactive ({clients.filter(c => c.status === 'inactive').length})
             </button>
           </div>
         </CardHeader>
@@ -297,6 +349,120 @@ export function ClientsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Client Modal */}
+      {showAddClientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop with blur */}
+          <div 
+            className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
+            onClick={() => setShowAddClientModal(false)}
+          />
+          
+          {/* Modal Card */}
+          <Card className="relative w-full max-w-lg border-slate-200 rounded-2xl shadow-2xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>Add New Client</CardTitle>
+                <button
+                  onClick={() => setShowAddClientModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">First Name</label>
+                  <input
+                    type="text"
+                    value={clientFirstName}
+                    onChange={(e) => setClientFirstName(e.target.value)}
+                    placeholder="John"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Last Name</label>
+                  <input
+                    type="text"
+                    value={clientLastName}
+                    onChange={(e) => setClientLastName(e.target.value)}
+                    placeholder="Doe"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-700 mb-2 block">Email Address</label>
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="john.doe@example.com"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-700 mb-2 block">Phone Number</label>
+                <input
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={clientDob}
+                    onChange={(e) => setClientDob(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-700 mb-2 block">Gender</label>
+                  <select
+                    value={clientGender}
+                    onChange={(e) => setClientGender(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAddClientModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createClient}
+                  disabled={!clientFirstName || !clientLastName || !clientEmail}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-xl text-sm hover:from-cyan-700 hover:to-teal-700 transition-all disabled:opacity-50"
+                >
+                  Register Patient
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

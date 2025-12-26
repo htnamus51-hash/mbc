@@ -115,3 +115,94 @@ git log --oneline
 
 **Your Live URL**: Will be provided after Vercel deployment
 **GitHub URL**: https://github.com/YOUR_USERNAME/mbc
+
+## TURN / coturn (WebRTC NAT traversal)
+
+For production WebRTC calls across NATs and restrictive networks you should configure a TURN server (coturn is popular).
+
+Quick notes:
+
+
+```text
+VITE_TURN_SERVERS='[{"urls":"turn:turn.example.com:3478","username":"turnuser","credential":"turnpass"}]'
+```
+
+
+
+```bash
+# Install coturn
+sudo apt update
+sudo apt install coturn
+
+# Edit /etc/turnserver.conf to set listening IPs, relay IPs and auth mechanism
+# Example config snippets:
+# listening-port=3478
+# fingerprint
+# lt-cred-mech
+# realm=yourdomain.com
+# use-auth-secret
+# static-auth-secret=<your-secret>
+
+# Start coturn as a service
+sudo systemctl enable coturn
+sudo systemctl start coturn
+```
+
+
+If you want, I can add a sample `docker-compose` coturn config and docs for generating long-term credentials.
+
+## Testing & Packaging For Devices (microphone + camera)
+
+If your local machine doesn't have a microphone or camera you can still prepare a distributable bundle to test on other devices that do. The steps below create a ZIP containing the frontend build artifacts and the backend source so a tester can run the frontend (served over HTTPS or via a tunnel) and the backend locally or on a LAN host.
+
+Prerequisites (on the machine that will *build* the package):
+
+- Node.js (18+ recommended) and `npm`.
+- Python 3.11+ and `pip` to run the backend (or a container runtime if you prefer docker).
+- `ngrok` or `localtunnel` (optional) to provide an HTTPS URL for devices on other networks.
+
+High-level packaging steps (automated script included):
+
+1. From the repo root run the PowerShell packaging script `package_for_devices.ps1` (see below). It will:
+   - install frontend dependencies (`npm ci`),
+   - build the frontend (`npm run build`) into the `build/` folder,
+   - create a zip `mbc_package.zip` containing the `build/` folder, the `backend/` folder, `requirements.txt`, and the deployment docs.
+
+PowerShell packaging command (from repo root):
+
+```powershell
+.\package_for_devices.ps1
+```
+
+What the tester needs to do on a device with camera/microphone:
+
+1. Unzip `mbc_package.zip` to a folder on the device.
+2. Install frontend static server (optional) or use the included instructions below:
+   - Option A (quick static + secure tunnel): Serve the built frontend using a simple static server and expose it via an HTTPS tunnel (recommended for cross-device testing):
+
+```powershell
+# install a short-lived static server and ngrok (if not installed globally)
+npx serve build -l 3000
+# in a separate shell, run an HTTPS tunnel (if available):
+# ngrok http 3000
+```
+
+Open the generated HTTPS ngrok URL (or the LAN address if you serve on the same Wi‑Fi network) in the device browser. The browser must show a secure origin (https or localhost) for `getUserMedia` to work on many platforms.
+
+3. Start the backend (if needed for signalling) on a machine reachable by both devices (can be the same machine as the static server):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+Notes and tips:
+
+- Browsers require a secure origin for camera/microphone access. Use `https://` (via ngrok or a reverse proxy with TLS) or `http://localhost` for local testing.
+- If devices are on the same LAN you can run `uvicorn` with `--host 0.0.0.0` and serve the frontend on the machine's LAN IP (e.g. `http://192.168.1.42:3000`) but most mobile browsers will still require HTTPS for camera access.
+- The code includes a synthetic demo stream fallback (canvas + oscillator) so you can still exercise the UI on machines without real hardware — but for real microphone/camera testing use a device with those peripherals.
+- For NAT traversal in production, configure `VITE_TURN_SERVERS` environment variable with your coturn/STUN/TURN servers (see earlier section).
+
+If you want, I can (A) run the packaging script here to produce `mbc_package.zip` now, or (B) just add the script and leave packaging to you. Which do you prefer?

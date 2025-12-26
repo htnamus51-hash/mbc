@@ -90,15 +90,18 @@ export function NotesPage() {
   };
 
   const categorizeNotes = () => {
-    const today = '2025-11-20';
-    const tomorrow = '2025-11-21';
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const tomorrowDate = new Date(now);
+    tomorrowDate.setDate(now.getDate() + 1);
+    const tomorrow = tomorrowDate.toISOString().split('T')[0];
     
     const today_notes: any[] = [];
     const tomorrow_notes: any[] = [];
     const done_notes: any[] = [];
     const missed_notes: any[] = [];
     
-    const currentTime = '15:34';
+    const currentTime = now.toTimeString().substring(0, 5);
     
     notes.forEach((note) => {
       // Completed notes go to Done

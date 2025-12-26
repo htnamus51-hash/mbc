@@ -1,5 +1,5 @@
 {
-  "name": "MBC",
+  "name": "mbc",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -47,6 +47,7 @@
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "*",
     "vaul": "^1.1.2"
@@ -55,6 +56,8 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/node": "^20.19.25",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^3.10.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
@@ -63,6 +66,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "server": "ts-node --project tsconfig.json server/index.ts"
+    "server": "ts-node --project tsconfig.json server/index.ts",
+    "test:e2e": "playwright test"
+  },
+  "description": "This is a code bundle for MBC. The original project is available at https://www.figma.com/design/ASUzMhuthDvKj0LkJ2HIgf/MBC.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sumanthak2004/mbc.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sumanthak2004/mbc/issues"
+  },
+  "homepage": "https://github.com/sumanthak2004/mbc#readme",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
   }
 }
