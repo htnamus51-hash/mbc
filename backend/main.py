@@ -16,6 +16,7 @@ from socketio import AsyncServer
 import socketio
 import logging
 from logging.handlers import RotatingFileHandler
+import traceback
 from bson import ObjectId
 from datetime import datetime, timedelta
 
@@ -148,44 +149,62 @@ async def login(payload: LoginRequest):
 
 @fastapi_app.post("/api/auth/register", response_model=SimpleMessage)
 async def register(payload: RegisterRequest):
-    # Debugging: print incoming role and show that request reached the route
-    # (This will only run for POST; OPTIONS is handled by CORSMiddleware.)
-    logger.info(f"Register attempt: email={payload.email}, role={payload.role}")
-    # check existing user via Data API or driver
-    if USE_DATA_API:
-        existing = await data_find_one("users", {"email": payload.email})
-    else:
-        existing = await users_collection.find_one({"email": payload.email})
-    if existing:
-        raise HTTPException(status_code=409, detail="User already exists")
+    try:
+        # Debugging: print incoming role and show that request reached the route
+        # (This will only run for POST; OPTIONS is handled by CORSMiddleware.)
+        logger.info(f"Register attempt: email={payload.email}, role={payload.role}")
 
-    if not payload.password or len(payload.password) < 4:
-        raise HTTPException(status_code=400, detail="Password too short")
+        # check existing user via Data API or driver
+        if USE_DATA_API:
+            existing = await data_find_one("users", {"email": payload.email})
+        else:
+            existing = await users_collection.find_one({"email": payload.email})
+        if existing:
+            raise HTTPException(status_code=409, detail="User already exists")
 
-    # Generate full_name from email (can be updated later)
-    full_name = payload.email.split('@')[0].replace('.', ' ').title()
-    
-    user_doc = {
-        "email": payload.email,
-        "password": hash_password(payload.password),
-        "role": payload.role,
-        "full_name": full_name,  # Generate from email
-        "user_type": payload.role,  # Same as role
-        "avatar_url": None,
-    }
-    if USE_DATA_API:
-        await data_insert_one("users", user_doc)
-    else:
-        await users_collection.insert_one(user_doc)
+        if not payload.password or len(payload.password) < 4:
+            raise HTTPException(status_code=400, detail="Password too short")
 
-    if payload.role == "admin":
-        msg = "Admin account created successfully"
-    elif payload.role == "doctor":
-        msg = "Doctor account created successfully"
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported role")
+        # Generate full_name from email (can be updated later)
+        full_name = payload.email.split('@')[0].replace('.', ' ').title()
+        
+        user_doc = {
+            "email": payload.email,
+            "password": hash_password(payload.password),
+            "role": payload.role,
+            "full_name": full_name,  # Generate from email
+            "user_type": payload.role,  # Same as role
+            "avatar_url": None,
+        }
+        if USE_DATA_API:
+            await data_insert_one("users", user_doc)
+        else:
+            await users_collection.insert_one(user_doc)
 
-    return SimpleMessage(message=msg)
+        if payload.role == "admin":
+            msg = "Admin account created successfully"
+        elif payload.role == "doctor":
+            msg = "Doctor account created successfully"
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported role")
+
+        return SimpleMessage(message=msg)
+    except HTTPException:
+        # re-raise HTTP exceptions unchanged
+        raise
+    except Exception as exc:
+        # ensure traceback is captured to a file for debugging
+        try:
+            tb = traceback.format_exc()
+            err_log = os.path.join(logs_dir, "error.log")
+            with open(err_log, "a", encoding="utf-8") as f:
+                f.write("\n--- Exception in /api/auth/register ---\n")
+                f.write(tb)
+                f.write("\n")
+            logger.error("Exception in register: %s", tb)
+        except Exception:
+            logger.exception("Failed to write exception to error.log")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 @fastapi_app.post("/api/appointments", response_model=AppointmentResponse)
