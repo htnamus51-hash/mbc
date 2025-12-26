@@ -99,11 +99,6 @@ os.makedirs(uploads_dir, exist_ok=True)
 fastapi_app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
-@fastapi_app.get("/")
-async def root():
-    return {"status": "ok", "message": "MBC Backend API is running", "docs": "/docs"}
-
-
 @fastapi_app.get("/health")
 async def health_check():
     return {"status": "ok", "message": "Backend is running"}
