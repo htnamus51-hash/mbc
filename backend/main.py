@@ -70,13 +70,10 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 # Allow CORS from all origins (for development)
-# Note: allow_credentials=True cannot be used with allow_origins=["*"]
-# So we remove allow_credentials or list specific origins
-
 fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
