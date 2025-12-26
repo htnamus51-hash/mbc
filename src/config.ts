@@ -1,5 +1,5 @@
 // Force Railway URL for all environments during testing
-const API_URL = 'https://13.62.128.161:8008';
+const API_URL = 'https://mbc.chakravue.co.in:8008';
 
 // Optional TURN servers configuration for WebRTC (set via Vite env)
 // Example in your environment: VITE_TURN_SERVERS='[{"urls":"turn:turn.example.com:3478","username":"user","credential":"pass"}]'
