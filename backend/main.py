@@ -86,15 +86,21 @@ sio = AsyncServer(
     ping_interval=25,
     logger=True,
     engineio_logger=True,
+    async_handlers=True,
 )
 
 # Mount Socket.IO to FastAPI - Create the ASGI app that will be exported
-app = socketio.ASGIApp(sio, fastapi_app)
+app = socketio.ASGIApp(sio, fastapi_app, socketio_path='/socket.io')
 
 # Serve uploaded files from /uploads
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 fastapi_app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
+
+@fastapi_app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "Backend is running"}
 
 
 @fastapi_app.post("/api/auth/login", response_model=LoginResponse)
